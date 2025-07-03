@@ -1,0 +1,198 @@
+{%extends 'site/base.html'%}
+
+{%block title%}Categories{%endblock%}
+
+{%block style%}
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #ff3e3e, #ffeb3b, #00ff9d, #3b82f6);
+            background-size: 500% 500%;
+            animation: gradientShift 10s ease infinite;
+        }
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .card {
+            transition: transform 0.3s, box-shadow 0.3s, background-color 0.3s;
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+            border: 2px solid transparent;
+        }
+        .card:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5), 0 0 20px #ffeb3b;
+            background-color: rgba(255, 255, 255, 0.15);
+            border-color: #ffeb3b;
+        }
+        .nav-link {
+            position: relative;
+            transition: color 0.3s;
+        }
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -4px;
+            left: 0;
+            background-color: #ffeb3b;
+            transition: width 0.3s;
+        }
+        .nav-link:hover::after {
+            width: 100%;
+        }
+    </style>
+{%endblock%}
+
+{%block content%}
+    <div class="flex-1 flex flex-col items-center justify-start p-8">
+        <h2 class="text-5xl font-extrabold mb-10 text-center text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-orange-500">Your Cart</h2>
+        <div class="w-full max-w-5xl space-y-6">
+            {% for i in carts %}
+            <div class="card bg-gray-800 bg-opacity-70 p-6 rounded-xl shadow-xl flex items-center space-x-6">
+                <img src="{{ i.product.img.url }}" alt="{{ i.product.img.url }}" class="w-24 h-24 object-cover rounded-lg">
+                <div class="flex-1">
+                    <p class="text-sm text-gray-400">Brand: {{ i.product.brand.name }}</p>
+                    <p class="text-xl font-bold text-yellow-300">{{i.product.name}}</p>
+                    <p class="text-sm text-gray-400" data-price="{{i.product.get_price}}">{{i.product.get_price_with_icon}}</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button class="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600 decrease"
+                            onclick="decrease('cart_{{i.id}}', {{i.id}})">-</button>
+                    <span class="text-lg quantity" id="cart_{{i.id}}">{{i.quantity}}</span>
+                    <button class="bg-green-500 text-white p-2 rounded-lg hover:bg-green-600 increase"
+                            onclick="increase('cart_{{i.id}}', {{i.id}})">+</button>
+                </div>
+                <button class="bg-red-600 text-white p-2 rounded-lg hover:bg-red-700 remove">Remove</button>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="w-full max-w-5xl mt-10 bg-gray-800 bg-opacity-70 p-6 rounded-xl shadow-xl flex justify-between items-center">
+            <p class="text-2xl font-bold text-yellow-300" id="total">Total: $<span id="total_balance">{{ request.user.calculater_cart }}</span></p>
+            <a href="checkout.html" class="bg-green-500 text-white p-4 rounded-lg hover:bg-green-600">Checkout</a>
+        </div>
+    </div>
+
+<script>
+    function increase(span_id, id) {
+        console.log('span_id:', span_id, 'id:', id);
+
+        // Get the span element
+        const spanElement = document.getElementById(span_id);
+        if (!spanElement) {
+            console.error(`Element with ID ${span_id} not found`);
+            return;
+        }
+
+        // Get current quantity and parse it as an integer
+        let quant = parseInt(spanElement.innerText, 10);
+        if (isNaN(quant)) {
+            console.error(`Invalid quantity in element ${span_id}: ${spanElement.innerText}`);
+            return;
+        }
+
+        // Increment quantity locally and update UI
+        quant++;
+        spanElement.innerHTML = quant;
+
+        // Make the fetch request
+        const url = `/ch/cart/${id}/0/`;
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Response data:', data);
+                if (data.success) {
+                    // Update UI only if server confirms success
+                    spanElement.innerHTML = quant; // Already incremented, no need to increment again
+                    const totalBalanceElement = document.getElementById('total_balance');
+                    if (totalBalanceElement) {
+                        totalBalanceElement.innerHTML = data.total_balance;
+                    } else {
+                        console.error('Element with ID total_balance not found');
+                    }
+                } else {
+                    // Revert UI change if server request fails
+                    quant--;
+                    spanElement.innerHTML = quant;
+                    console.error('Server request failed:', data);
+                }
+            })
+            .catch(error => {
+                // Revert UI change on network error
+                quant--;
+                spanElement.innerHTML = quant;
+                console.error('Fetch error:', error);
+            });
+    }
+function decrease(span_id, id) {
+    console.log('span_id:', span_id, 'id:', id);
+
+    // Get the span element
+    const spanElement = document.getElementById(span_id);
+    if (!spanElement) {
+        console.error(`Element with ID ${span_id} not found`);
+        return;
+    }
+
+    // Get current quantity and parse it as an integer
+    let quant = parseInt(spanElement.textContent, 10);
+    if (isNaN(quant)) {
+        console.error(`Invalid quantity in element ${span_id}: ${spanElement.textContent}`);
+        return;
+    }
+
+    // Prevent quantity from going below 0
+    if (quant <= 0) {
+        console.warn(`Quantity in element ${span_id} is already 0`);
+        return;
+    }
+
+    // Decrement quantity locally and update UI
+    quant--;
+    spanElement.textContent = quant;
+
+    // Make the fetch request
+    const url = `/ch/cart/${id}/0/`;
+    fetch(url, { method: 'POST' }) // Assuming POST for cart update
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Network response was not ok: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Response data:', data);
+            if (data.success) {
+                // Update UI only if server confirms success
+                spanElement.textContent = quant; // Already decremented
+                const totalBalanceElement = document.getElementById('total_balance');
+                if (totalBalanceElement) {
+                    totalBalanceElement.textContent = data.total_balance;
+                } else {
+                    console.error('Element with ID total_balance not found');
+                }
+            } else {
+                // Revert UI change if server request fails
+                quant++;
+                spanElement.textContent = quant;
+                console.error('Server request failed:', data);
+            }
+        })
+        .catch(error => {
+            // Revert UI change on network error
+            quant++;
+            spanElement.textContent = quant;
+            console.error('Fetch error:', error);
+        });
+}
+</script>
+
+{%endblock%}
