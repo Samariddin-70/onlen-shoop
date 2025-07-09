@@ -21,7 +21,8 @@ from django.urls import path,include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('cors.urls'))
+    path('', include('cors.urls')),
+    path('api/v1/', include("cors.v1.urls"))
 ]
 
 

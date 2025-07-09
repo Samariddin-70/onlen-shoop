@@ -1,7 +1,5 @@
-from tkinter.constants import CASCADE
 
 from django.db import models
-from django.db.models import DO_NOTHING, TextChoices, IntegerChoices
 from django.utils.text import slugify
 
 from cors.models import User
@@ -12,10 +10,19 @@ class Category(models.Model):
     slug = models.SlugField(max_length=128)
     deleted = models.BooleanField(default=False)
 
+    def get_response(self):
+        return {
+
+            'id' : self.id,
+            'name' : self.name,
+            'slug' : self.slug,
+            'deleted' : self.deleted,
+        }
+
     def delete(self, using=None, keep_parents=False):
         self.deleted = True
         self.save()
-        #unga tegishli buganlar ham uchadi
+        #unga tegishli buganlar ham o'chadi
         self.brand_products.all()
 
 
@@ -29,9 +36,15 @@ class Category(models.Model):
 
     class CustomManager(models.Manager):
         def all(self, *args, **kwargs):
-            return self.module.objects.filter(deleted=False, *args, **kwargs).first()
+            return self.model.objects.filter(deleted=False, *args, **kwargs)
 
-    object = CustomManager()
+        def get(self, *args, **kwargs):
+            return self.model.objects.filter(**kwargs).first()
+
+    objects = CustomManager()
+
+
+
 
 class Brand(models.Model):
     name = models.CharField(max_length=128)
@@ -49,7 +62,7 @@ class Brand(models.Model):
         def all(self, *args, **kwargs):
             return self.module.objects.filter(deleted=False, *args, **kwargs).first()
 
-    object = CustomManager()
+    objects = CustomManager()
 
 # class RateChoice(IntegerChoices):
 #
@@ -128,8 +141,3 @@ class Cart(models.Model):
     def save(self, *args, **kwargs):
         self.total_price = self.product.get_price() * self.quantity
         return super(Cart, self).save(*args, **kwargs)
-
-
-
-
-

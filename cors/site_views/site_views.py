@@ -6,7 +6,7 @@ from cors.models.products import Category,Cart,Product
 
 
 def index(request):
-    ctg = Category.object.get(id=1)
+    ctg = Category.objects.get(id=1)
     products = Product.objects.all()
 
     try:
